@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Silent Earth — Rika: The Lullaby of Ash &amp; Bone</title>
+    <meta name="description" content="A 2D gothic horror action game. Descend into hell with a flickering lantern, fight demons and secret bosses, and don't turn your back on the Mourner." />
+    <meta name="theme-color" content="#070203" />
+    <meta property="og:title" content="Silent Earth — A Descent Into Hell" />
+    <meta property="og:description" content="A 2D gothic horror action game playable in your browser. Keyboard and mouse recommended." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <canvas id="game-canvas"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <!-- Top Bar: Dungeon Depth Progress, Soul Shards & Score -->
+      <div id="topbar">
+        <div id="stage-badge">ACT I · CATACOMBS OF WEEPING IRON</div>
+        <div id="progress-track">
+          <div id="progress-fill"></div>
+          <div id="progress-rika"></div>
+          <span class="skull-icon">☠ LORD</span>
+        </div>
+        <div id="score-box">
+          <span class="shard-pill">◆ SOULS <b id="shards-val">0</b></span>
+          <span>SCORE <b id="score-val">0</b></span>
+          <span>SLAIN <b id="kills-val">0</b></span>
+          <button id="btn-top-options" class="topbar-btn" title="Sanctuary Options & Accessibility [O]">⚙ SETTINGS</button>
+        </div>
+      </div>
+
+      <!-- Rika's Journey Chronicle Ribbon (triggers at story milestones across the 2-hour journey) -->
+      <div id="journey-ribbon" class="hidden">
+        <div id="journey-zone">DEPTH I · THE OSSUARY GATE</div>
+        <div id="journey-title">THE BROKEN SEAL</div>
+        <div id="journey-text"></div>
+      </div>
+
+      <!-- Top-Right Dungeon Cartography Map & Stylish Combo Rank -->
+      <div id="right-hud">
+        <div id="minimap-wrap">
+          <div class="minimap-label">CATACOMB CARTOGRAPHY · DEPTH MAP</div>
+          <canvas id="minimap-canvas" width="250" height="84"></canvas>
+        </div>
+        <div id="combo-panel" class="hidden">
+          <div id="combo-rank">SSS</div>
+          <div class="combo-info">
+            <div id="combo-title">ASHEN WARDEN!</div>
+            <div id="combo-count">18 HITS · 2.5x DMG</div>
+            <div class="combo-bar-bg"><div id="combo-bar-fill"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Boss Health Bar (shown during boss & mid-boss fights) -->
+      <div id="boss-hud" class="hidden">
+        <div id="boss-name">LORD MALAK · THE IRON PENITENT</div>
+        <div id="boss-phase">PHASE 1</div>
+        <div class="boss-bar-outer">
+          <div id="boss-bar-lag"></div>
+          <div id="boss-bar-fill"></div>
+          <div id="boss-phase-notches"></div>
+        </div>
+        <!-- Tip 33: Boss Posture / Stagger Meter -->
+        <div class="boss-stagger-outer" title="Boss Posture / Stagger Resistance">
+          <div id="boss-stagger-fill"></div>
+        </div>
+      </div>
+
+      <!-- Dramatic Boss Intro Cutscene Splash -->
+      <div id="boss-intro-card" class="hidden">
+        <div class="boss-intro-line">ABYSSAL SEAL BROKEN // FALLEN LORD ENGAGED</div>
+        <h1 id="boss-intro-title">LORD MALAK</h1>
+        <h2 id="boss-intro-sub">THE IRON PENITENT</h2>
+      </div>
+
+      <!-- Stage Announcer Banner -->
+      <div id="stage-banner" class="hidden">
+        <h2 id="banner-title">ACT I</h2>
+        <p id="banner-sub">CATACOMBS OF WEEPING IRON</p>
+      </div>
+
+      <!-- Interactive World Prompt (Reliquaries, Shrines, Golem Armor) -->
+      <div id="interact-prompt" class="hidden">[G] INTERACT</div>
+
+      <!-- Side Objectives & Relic Strip -->
+      <div id="left-hud">
+        <div id="objectives-panel"></div>
+        <div id="item-strip"></div>
+      </div>
+
+      <!-- Bottom-Left: Rika Vitals & 5 Weapon Arsenal -->
+      <div id="vitals-panel">
+        <div class="char-header">
+          <div class="eye-icon"></div>
+          <div>
+            <div class="char-name" id="char-status-title">RIKA · FIRST WARDEN OF THE VIGIL</div>
+            <div id="perk-list">BLESSINGS: NONE</div>
+          </div>
+        </div>
+        <div class="stat-row">
+          <span>VIGIL</span>
+          <div class="bar-wrap"><div id="bar-xp" class="bar-fill xp"></div></div>
+          <b id="txt-xp">LV 1</b>
+        </div>
+        <div class="stat-row">
+          <span>BLOOD</span>
+          <div class="bar-wrap"><div id="bar-hp" class="bar-fill hp"></div></div>
+          <b id="txt-hp">120/120</b>
+        </div>
+        <div class="stat-row">
+          <span>WARD</span>
+          <div class="bar-wrap"><div id="bar-shield" class="bar-fill shield"></div></div>
+          <b id="txt-shield">100%</b>
+        </div>
+        <div class="stat-row">
+          <span>ASH-EYE</span>
+          <div class="bar-wrap"><div id="bar-rage" class="bar-fill rage"></div></div>
+          <b id="txt-rage">100%</b>
+        </div>
+
+        <div id="weapon-bar">
+          <div class="wep active" id="wep-1"><b>[1]</b> REPEATER</div>
+          <div class="wep" id="wep-2"><b>[2]</b> HELL-SHOT</div>
+          <div class="wep" id="wep-3"><b>[3]</b> LANCE</div>
+          <div class="wep" id="wep-4"><b>[4]</b> STORM-COIL</div>
+          <div class="wep" id="wep-5"><b>[5]</b> ABYSS-ORB</div>
+          <div class="ammo-box" id="ammo-txt">40 / 40 <span>[R]</span></div>
+        </div>
+        <div id="ammo-type-row">[T] RUNE: <b id="ammo-type">STANDARD</b> · [TAB] CHRONICLE · [J] REPLAY STORY · [M] MUTE</div>
+      </div>
+
+      <!-- Bottom-Right: Rika's 7 Combat & Dungeon Abilities -->
+      <div id="abilities-panel">
+        <div class="ability" id="ab-blade">
+          <div class="cd-overlay" id="cd-blade"></div>
+          <span class="key">X</span>
+          <span class="ab-name">CRUCIBLE BLADE</span>
+          <span class="ab-desc">Slash &amp; Execution</span>
+        </div>
+        <div class="ability" id="ab-grapple">
+          <div class="cd-overlay" id="cd-grapple"></div>
+          <span class="key">F</span>
+          <span class="ab-name">CHAIN-HOOK</span>
+          <span class="ab-desc">Grapple / Zip</span>
+        </div>
+        <div class="ability" id="ab-dash">
+          <div class="cd-overlay" id="cd-dash"></div>
+          <span class="key">SHIFT</span>
+          <span class="ab-name">SHADOW STEP</span>
+          <span class="ab-desc">Invuln Slice</span>
+        </div>
+        <div class="ability" id="ab-well">
+          <div class="cd-overlay" id="cd-well"></div>
+          <span class="key">Z</span>
+          <span class="ab-name">ABYSS VORTEX</span>
+          <span class="ab-desc">Gravity Well</span>
+        </div>
+        <div class="ability" id="ab-grenade">
+          <div class="cd-overlay" id="cd-grenade"></div>
+          <span class="key">Q</span>
+          <span class="ab-name">CINDER FLASK</span>
+          <span class="ab-desc">Cluster Bomb</span>
+        </div>
+        <div class="ability" id="ab-shield">
+          <div class="cd-overlay" id="cd-shield"></div>
+          <span class="key">E</span>
+          <span class="ab-name">VIGIL AEGIS</span>
+          <span class="ab-desc">Reflect Ward</span>
+        </div>
+        <div class="ability ult" id="ab-redeye">
+          <div class="cd-overlay" id="cd-redeye"></div>
+          <span class="key">V / RMB</span>
+          <span class="ab-name">ASHEN GAZE</span>
+          <span class="ab-desc">Time-Slow + Beam</span>
+        </div>
+      </div>
+
+      <div id="messages"></div>
+    </div>
+
+    <!-- Cinematic Widescreen Cutscene Engine Layer -->
+    <div id="cutscene-overlay" class="hidden">
+      <!-- Letterbox Top and Bottom Bars -->
+      <div id="cutscene-bar-top"></div>
+      <div id="cutscene-bar-bottom"></div>
+
+      <!-- Cinematic Background Art / Illustration (for Prologue / Epilogue) -->
+      <div id="cutscene-art-wrap" class="hidden">
+        <img id="cutscene-art-img" src="assets/prologue_catacombs.webp" alt="Cinematic Scene" />
+        <div class="cutscene-art-vignette"></div>
+      </div>
+
+      <!-- Left Speaker: Rika -->
+      <div id="cutscene-speaker-left" class="cutscene-speaker left hidden">
+        <div class="cutscene-portrait-frame rika-frame">
+          <img id="cutscene-left-img" src="assets/rika_portrait.webp" alt="Rika" />
+          <div class="portrait-glow"></div>
+        </div>
+        <div class="speaker-nametag">
+          <span id="cutscene-left-name">RIKA</span>
+          <small id="cutscene-left-title">FIRST WARDEN OF THE VIGIL</small>
+        </div>
+      </div>
+
+      <!-- Right Speaker: Demon Boss / Warden -->
+      <div id="cutscene-speaker-right" class="cutscene-speaker right hidden">
+        <div class="cutscene-portrait-frame demon-frame">
+          <img id="cutscene-right-img" src="assets/boss1_malakor.webp" alt="Demon Boss" />
+          <div class="demon-blood-aura"></div>
+        </div>
+        <div class="speaker-nametag demon-nametag">
+          <span id="cutscene-right-name">LORD MALAK</span>
+          <small id="cutscene-right-title">THE CINDER PENITENTIARY</small>
+        </div>
+      </div>
+
+      <!-- Boss Intro Title Splash Card -->
+      <div id="cutscene-boss-splash" class="hidden">
+        <div class="splash-runic-border"></div>
+        <div id="cutscene-splash-tag">ABYSSAL SEAL BREACHED // FALLEN LORD ENGAGED</div>
+        <h1 id="cutscene-splash-title">LORD MALAK</h1>
+        <h2 id="cutscene-splash-sub">THE CINDER PENITENTIARY · WARDEN OF DENIAL</h2>
+        <div class="splash-flare"></div>
+      </div>
+
+      <!-- Dialogue Subtitle Box -->
+      <div id="cutscene-box" class="hidden">
+        <div class="cutscene-box-header">
+          <span class="scene-tag">CINEMATIC CHRONICLE</span>
+          <span id="cutscene-counter">1 / 5</span>
+        </div>
+        <div id="cutscene-dialogue-text"></div>
+        <div class="cutscene-controls">
+          <button id="cutscene-btn-skip">SKIP SCENE [ESC]</button>
+          <button id="cutscene-btn-next">CONTINUE [SPACE / ↵]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Story & Boss Conversation Cutscene Modal -->
+    <div id="dialogue-modal" class="hidden">
+      <div class="dialogue-box">
+        <div id="dlg-portrait" class="dialogue-portrait">⚔</div>
+        <div class="dialogue-content">
+          <div class="dialogue-header">
+            <span id="dlg-speaker">RIKA</span>
+            <span id="dlg-role">FIRST WARDEN OF THE VIGIL</span>
+          </div>
+          <div id="dlg-text"></div>
+          <div class="dialogue-footer">
+            <span id="dlg-step">1 / 5</span>
+            <div class="dlg-actions">
+              <button id="btn-dlg-skip">SKIP [ESC]</button>
+              <button id="btn-dlg-next">CONTINUE [SPACE]</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kess the Peddler's Catacomb Reliquary -->
+    <div id="screen-merchant" class="screen hidden">
+      <div class="panel wide">
+        <h1 class="green">KESS · THE CATACOMB PEDDLER</h1>
+        <h2 id="merchant-line">“Step close to the brazier, Warden.”</h2>
+        <div class="shop-status">YOUR SOUL SHARDS: <b id="merchant-shards">0</b> ◆</div>
+        <div class="shop-row" id="merchant-items"></div>
+        <button id="btn-close-merchant">LEAVE SANCTUARY</button>
+      </div>
+    </div>
+
+    <!-- Character: Skill Tree, Relics, Achievements & Rika's Chronicle -->
+    <div id="screen-char" class="screen hidden">
+      <div class="panel wide">
+        <h1>RIKA’S CHRONICLE &amp; VOWS</h1>
+        <div id="char-body"></div>
+        <button id="btn-close-char">CLOSE [TAB]</button>
+      </div>
+    </div>
+
+    <!-- Boon Selection -->
+    <div id="screen-boon" class="screen hidden">
+      <div class="panel wide">
+        <h1 class="green">CLAIM AN ANCIENT RELIC</h1>
+        <h2 id="boon-sub">CHOOSE ONE RELIC FROM THE RELIQUARY</h2>
+        <div id="boon-cards" class="cards-grid"></div>
+      </div>
+    </div>
+
+    <div id="toast-stack"></div>
+
+    <!-- Level Complete Screen (Arcade / Action-Adventure progression) -->
+    <div id="screen-level-clear" class="screen hidden">
+      <div class="panel wide level-clear-panel">
+        <div class="clear-badge">✦ LEVEL COMPLETE ✦</div>
+        <h1 id="clear-level-title">LEVEL 1 CLEARED!</h1>
+        <h2 id="clear-verse-title">VERSE I OF LYRA RECOVERED: THE VERSE OF EMBERS</h2>
+        <p class="clear-story-text" id="clear-story-desc">
+          The iron penitentiary lies broken. Rika reclaims the first verse of her sister’s lullaby from the burning ash.
+        </p>
+        <div class="clear-stats-grid">
+          <div class="stat-box">
+            <span class="stat-label">DEMONS VANQUISHED</span>
+            <b class="stat-val" id="clear-stat-kills">0</b>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">SOUL SHARDS REAPED</span>
+            <b class="stat-val" id="clear-stat-shards">0 ◆</b>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">TOTAL SCORE</span>
+            <b class="stat-val" id="clear-stat-score">0</b>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">ABYSSAL SEALS</span>
+            <b class="stat-val green" id="clear-stat-seal">1 / 5 RESTORED</b>
+          </div>
+        </div>
+        <div class="level-clear-actions">
+          <button id="btn-forge-relics" class="btn-secondary">VISIT SANCTUARY FORGE [BLESSINGS &amp; RELICS]</button>
+          <button id="btn-proceed-level" class="btn-primary">PROCEED TO NEXT LEVEL ▸</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Between-Act Sanctuary Forge & Blessings Modal -->
+    <div id="screen-upgrade" class="screen hidden">
+      <div class="panel wide">
+        <h1 class="green">SANCTUARY FORGE</h1>
+        <h2>CHOOSE 1 ASHEN BLESSING &amp; TEMPER YOUR ARMS WITH SOUL SHARDS</h2>
+        <div class="shop-status">AVAILABLE SOUL SHARDS: <b id="shop-shards">0</b> ◆</div>
+        <div id="upgrade-cards" class="cards-grid"></div>
+        <div class="shop-row" id="shop-items"></div>
+        <button id="btn-next-stage">PROCEED TO NEXT LEVEL →</button>
+      </div>
+    </div>
+
+    <!-- Main Menu Screen -->
+    <div id="screen-menu" class="screen title-screen">
+      <canvas id="title-canvas"></canvas>
+
+      <div class="title-left">
+        <div class="title-logo">
+          <div class="title-kicker">A DESCENT INTO HELL</div>
+          <h1 class="title-main">SILENT EARTH</h1>
+          <div class="title-rule"><span>✦</span></div>
+          <div class="title-sub">RIKA · THE LULLABY OF ASH &amp; BONE</div>
+        </div>
+
+        <nav class="title-menu">
+          <button class="tm-item hidden" id="tm-continue" data-action="continue"><span>CONTINUE</span><small id="tm-continue-sub">Act I</small></button>
+          <button class="tm-item" data-panel="journey"><span>NEW JOURNEY</span><small>Begin Rika's descent</small></button>
+          <button class="tm-item" data-panel="chapters"><span>CHAPTERS</span><small>Acts, crypts &amp; vaults</small></button>
+          <button class="tm-item" data-panel="trials"><span>TRIALS</span><small>Boss Rush · The Blood Pit</small></button>
+          <button class="tm-item" data-panel="armory"><span>ARMORY</span><small>Cloaks, superpowers, weapons</small></button>
+          <button class="tm-item" data-panel="codex"><span>CODEX</span><small>Every demon you have faced</small></button>
+          <button class="tm-item" data-panel="controls"><span>CONTROLS</span><small>Keyboard &amp; gamepad</small></button>
+          <button class="tm-item" data-action="settings"><span>SETTINGS</span><small>Display &amp; accessibility</small></button>
+        </nav>
+
+        <div class="title-footer">
+          <div id="menu-progress"></div>
+          <div id="menu-records">BEST BLOOD PIT WAVE <b id="best-wave">0</b> · VOWS <b id="ach-count">0</b></div>
+        </div>
+      </div>
+
+      <!-- NEW JOURNEY -->
+      <section class="title-panel" id="tp-journey">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">NEW JOURNEY</div>
+        <h2>The Lullaby Is Broken</h2>
+        <p class="tp-story">
+          Three hundred years ago, <b>Rika</b>, First Warden of the Ashen Vigil, descended into the catacombs with her
+          sister <b>Lyra</b>. To stop the Abyssal Choir from swallowing the earth, Lyra bound her soul into
+          <b>the Living Lullaby</b>, five verses that kept the Demon Lords asleep.
+        </p>
+        <p class="tp-story">
+          Now the seal is broken. Five Fallen Lords have stolen the verses into the deepest dungeons beneath the earth.
+          Descend through five acts, open the crypts and vaults hidden along the way, and sing the Lullaby one last time.
+        </p>
+        <div class="tp-label">DIFFICULTY</div>
+        <div class="diff-row">
+          <button class="diff-btn active" data-diff="normal"><b>PILGRIM</b><small>The intended journey</small></button>
+          <button class="diff-btn" data-diff="hard"><b>WARDEN</b><small>Demons hit harder</small></button>
+          <button class="diff-btn" data-diff="nightmare"><b>ABYSSAL</b><small>No mercy</small></button>
+        </div>
+        <div class="tp-actions">
+          <button id="btn-prologue" class="btn-ghost">▶ WATCH THE OPENING</button>
+          <button id="btn-new-journey" class="btn-primary">DESCEND ▸</button>
+        </div>
+        <button id="btn-start" class="hidden">start</button>
+      </section>
+
+      <!-- CHAPTERS -->
+      <section class="title-panel wide" id="tp-chapters">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">CHAPTERS</div>
+        <h2>The Five Acts</h2>
+        <p class="tp-hint">Every act hides an amber <b>Crypt</b> holding a superpower, and a violet <b>Vault</b>. The Vault's key hangs from the act's Warden, and a secret boss waits inside.</p>
+        <div id="chapter-list" class="chapter-list"></div>
+      </section>
+
+      <!-- TRIALS -->
+      <section class="title-panel" id="tp-trials">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">TRIALS</div>
+        <h2>Prove Yourself</h2>
+        <div class="trial-card">
+          <h3>BOSS RUSH</h3>
+          <p>All five Fallen Lords, back to back, against the clock.</p>
+          <button id="btn-boss-rush" class="btn-primary">ENTER THE GAUNTLET ▸</button>
+        </div>
+        <div class="trial-card">
+          <h3>THE BLOOD PIT</h3>
+          <p>Endless waves of demons. A champion every fifth wave. How deep can you go?</p>
+          <button id="btn-blood-pit" class="btn-primary">ENTER THE PIT ▸</button>
+        </div>
+      </section>
+
+      <!-- ARMORY -->
+      <section class="title-panel wide" id="tp-armory">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">ARMORY</div>
+        <h2>Prepare the Warden</h2>
+        <div class="armory-grid">
+          <div class="armory-preview-wrap">
+            <canvas id="armory-preview" width="520" height="600"></canvas>
+            <div id="armory-cloak-name"></div>
+          </div>
+          <div class="armory-cols">
+            <div class="tp-label">CLOAK</div>
+            <div id="armory-cloaks" class="swatches"></div>
+            <div class="tp-label">SUPERPOWER <small>[B]</small></div>
+            <div id="armory-sigils" class="sigil-list"></div>
+          </div>
+        </div>
+        <div class="tp-label">ARSENAL</div>
+        <div id="armory-weapons" class="wep-list"></div>
+      </section>
+
+      <!-- CODEX -->
+      <section class="title-panel wide" id="tp-codex">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">CODEX</div>
+        <h2>Bestiary of the Abyss</h2>
+        <div id="codex-grid"></div>
+      </section>
+
+      <!-- CONTROLS -->
+      <section class="title-panel" id="tp-controls">
+        <button class="tp-close" title="Close [Esc]">✕</button>
+        <div class="tp-kicker">CONTROLS</div>
+        <h2>Keyboard &amp; Mouse</h2>
+        <div class="controls">
+          <div><b>A / D</b> Run &amp; wall-cling</div><div><b>W / Space</b> Jump &amp; double-jump</div>
+          <div><b>Mouse</b> Aim · <b>LMB</b> Fire</div><div><b>RMB / Z</b> Alt-fire</div>
+          <div><b>1 – 9 / Wheel</b> Switch weapon</div><div><b>B</b> Superpower</div>
+          <div><b>X</b> Crucible Blade &amp; executions</div><div><b>F</b> Chain-Hook grapple</div>
+          <div><b>Shift</b> Shadow Step dash</div><div><b>Q / E</b> Cinder Flask / Vigil Aegis</div>
+          <div><b>V</b> Ashen Gaze (time-slow)</div><div><b>G</b> Interact, enter doors</div>
+          <div><b>T</b> Cycle elemental runes</div><div><b>R</b> Reload</div>
+          <div><b>Tab</b> Chronicle &amp; skills</div><div><b>Esc</b> Pause</div>
+        </div>
+        <p class="tp-hint">Gamepads work too: left stick moves, A jumps, RT fires, LT alt-fires, LB dashes.</p>
+      </section>
+    </div>
+
+    <!-- Sanctuary Settings & Accessibility Modal -->
+    <div id="options-modal" class="screen hidden">
+      <div class="panel">
+        <h1 class="amber">SETTINGS</h1>
+        <div class="settings-grid">
+          <div class="settings-group">
+            <label>Screenshake Intensity: <b id="val-shake">100%</b></label>
+            <input type="range" id="slider-shake" min="0" max="100" value="100" />
+          </div>
+          <div class="settings-group">
+            <label>Screen Flash Intensity: <b id="val-flash">100%</b></label>
+            <input type="range" id="slider-flash" min="0" max="100" value="100" />
+          </div>
+          <div class="settings-group">
+            <label>Darkness: <b id="val-dark">100%</b> <small>(lower it if the dark is too hard to read)</small></label>
+            <input type="range" id="slider-dark" min="35" max="100" value="100" />
+          </div>
+          <div class="settings-group">
+            <label><input type="checkbox" id="chk-contrast" /> High-Contrast Actor Outlines</label>
+          </div>
+          <div class="settings-group">
+            <label>Colorblind Accessibility Preset:</label>
+            <select id="sel-colorblind">
+              <option value="none">Standard (Dark Cathedral Palette)</option>
+              <option value="protanopia">Protanopia (High-Vis Gold & Cyan)</option>
+              <option value="deuteranopia">Deuteranopia (Amber & Violet)</option>
+              <option value="tritanopia">Tritanopia (Crimson & Teal)</option>
+            </select>
+          </div>
+          <div class="settings-group">
+            <label>Cloaks are chosen in the <b>Armory</b> on the title screen.</label>
+          </div>
+          <div class="settings-group">
+            <label>Active Loadout Profile:</label>
+            <button id="btn-swap-loadout" class="gold-btn">Switch to Profile B [L]</button>
+          </div>
+          <div class="settings-group">
+            <label>Ordeal of the Damned Modifiers:</label>
+            <div id="skull-toggles">
+              <label><input type="checkbox" id="skull-haste" /> Skull of Fervor (+25% Speed)</label>
+              <label><input type="checkbox" id="skull-flesh" /> Skull of Iron (+40% Armor)</label>
+              <label><input type="checkbox" id="skull-desolation" /> Skull of Desolation (No Free Heals)</label>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top: 18px;">
+          <button id="btn-close-options">SAVE & RESUME [ESC]</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Developer Debug Overlay [F1] -->
+    <div id="debug-overlay" class="hidden">
+      <div class="debug-header">DEV DEBUG CONSOLE [F1]</div>
+      <div id="debug-fps">FPS: 60</div>
+      <div id="debug-entities">Entities: 0</div>
+      <div id="debug-pos">Pos: X:0, Y:0</div>
+      <div class="debug-actions">
+        <button id="btn-dbg-god">God Mode: OFF</button>
+        <button id="btn-dbg-boss">Spawn Boss</button>
+        <button id="btn-dbg-next">Next Act</button>
+      </div>
+    </div>
+
+    <!-- Pause Screen -->
+    <div id="screen-pause" class="screen hidden">
+      <div class="panel small">
+        <h1>VIGIL PAUSED</h1>
+        <button id="btn-resume">RESUME DESCENT</button>
+        <button id="btn-restart-pause">RETURN TO TITLE</button>
+      </div>
+    </div>
+
+    <!-- Death Screen -->
+    <div id="screen-dead" class="screen hidden">
+      <div class="panel small">
+        <h1 class="red">THE FLAME FLICKERS</h1>
+        <p id="dead-reason">Rika fell in the catacombs.</p>
+        <div class="btn-row">
+          <button id="btn-retry-stage">RISE AT SANCTUARY BRAZIER</button>
+          <button id="btn-retry">TITLE SCREEN</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Victory Screen -->
+    <div id="screen-win" class="screen hidden">
+      <div class="panel">
+        <h1 class="green">THE LULLABY IS COMPLETE</h1>
+        <h2>THE FIVE VERSES UNITED · THE DAWN AFTER THREE HUNDRED YEARS</h2>
+        <p id="win-stats"></p>
+        <p class="story">
+          At the bottom of the Abyss, Rika sang the Five Verses together—not to lock the world in sleep again, but to
+          let three centuries of sorrow finally end. As Davoth-Omega’s crown crumbled to ash, Lyra’s voice rose through
+          the stone catacombs one last time and became the morning wind over a healing earth.
+        </p>
+        <button id="btn-again">BEGIN A NEW VIGIL</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
